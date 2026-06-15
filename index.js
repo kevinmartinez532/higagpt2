@@ -23,16 +23,19 @@ const prefix = ".";
 // =======================
 // IDS
 // =======================
-
 const WELCOME_CHANNEL_ID = "1515902507807936722";
 const VOUCH_CHANNEL_ID = "1515887426860744807";
 
 const STAFF_ROLE_ID = "1506430627501703249";
 
+const GHOSTPING_CHANNEL_ID = "1516211030538322043";
+
+const RANDOM_MEMBER_ROLE_ID = "1506425155189084250";
+const RANDOM_VOUCH_ROLE_ID = "1506430627501703249";
+
 const BUY_CATEGORY_ID = "1515888821936324738";
 const SELL_CATEGORY_ID = "1515888774154817699";
 const SUPPORT_CATEGORY_ID = "1515901968030367915";
-
 // =======================
 // SYSTEM DATA
 // =======================
@@ -57,7 +60,63 @@ const vouchReasons = [
 client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
+setInterval(async () => {
 
+  const guild = client.guilds.cache.first();
+  if (!guild) return;
+
+  const memberRole = guild.roles.cache.get(RANDOM_MEMBER_ROLE_ID);
+  const vouchRole = guild.roles.cache.get(RANDOM_VOUCH_ROLE_ID);
+
+  if (!memberRole || !vouchRole) return;
+
+  const members = memberRole.members.map(m => m);
+  const vouchTargets = vouchRole.members.map(m => m);
+
+  if (!members.length || !vouchTargets.length) return;
+
+  const randomMember =
+    members[Math.floor(Math.random() * members.length)];
+
+  const randomTarget =
+    vouchTargets[Math.floor(Math.random() * vouchTargets.length)];
+
+  const vouchChannel = guild.channels.cache.get(VOUCH_CHANNEL_ID);
+  if (!vouchChannel) return;
+
+  const current = vouchCount.get(randomTarget.id) || 0;
+  vouchCount.set(randomTarget.id, current + 1);
+
+  const randomReason =
+    vouchReasons[Math.floor(Math.random() * vouchReasons.length)];
+
+  const embed = new EmbedBuilder()
+    .setColor("#57F287")
+    .setTitle("⭐ New Vouch")
+    .addFields(
+      {
+        name: "Vouched For",
+        value: `${randomTarget}`
+      },
+      {
+        name: "Vouched By",
+        value: `${randomMember}`
+      },
+      {
+        name: "Reason",
+        value: randomReason
+      },
+      {
+        name: "Total Vouches",
+        value: `${current + 1}`
+      }
+    )
+    .setFooter({ text: "Powered by GAG2 Helper Bot" })
+    .setTimestamp();
+
+  vouchChannel.send({ embeds: [embed] });
+
+}, 20 * 60 * 1000);
 client.login(process.env.TOKEN);
 
 // =======================
@@ -84,6 +143,16 @@ client.on("guildMemberAdd", async (member) => {
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
+
+const ghostChannel = member.guild.channels.cache.get(GHOSTPING_CHANNEL_ID);
+
+if (ghostChannel) {
+  ghostChannel.send(`${member}`).then(msg => {
+    setTimeout(() => {
+      msg.delete().catch(() => {});
+    }, 1000);
+  });
+}
 });
 
 // =======================
