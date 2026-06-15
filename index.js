@@ -2,10 +2,10 @@ const {
   Client,
   GatewayIntentBits,
   EmbedBuilder,
-  PermissionsBitField,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  PermissionsBitField,
   ChannelType
 } = require("discord.js");
 
@@ -13,43 +13,87 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent
   ]
 });
 
 const prefix = ".";
+
+// =======================
+// IDS
+// =======================
+
+const WELCOME_CHANNEL_ID = "1515902507807936722";
+const VOUCH_CHANNEL_ID = "1515887426860744807";
+
+const STAFF_ROLE_ID = "1506430627501703249";
+
+const BUY_CATEGORY_ID = "1515888821936324738";
+const SELL_CATEGORY_ID = "1515888774154817699";
+const SUPPORT_CATEGORY_ID = "1515901968030367915";
+
+// =======================
+// DATA
+// =======================
+
 const claimedTickets = new Map();
 
-// =========================
-// LOGIN
-// =========================
+// =======================
+// READY
+// =======================
+
 client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 client.login(process.env.TOKEN);
 
-// =========================
-// PANEL COMMANDS
-// =========================
+// =======================
+// WELCOME SYSTEM
+// =======================
+
+client.on("guildMemberAdd", async (member) => {
+
+  const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
+  if (!channel) return;
+
+  const created = `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`;
+
+  const embed = new EmbedBuilder()
+    .setColor("#7BC96F")
+    .setTitle("🌿 Welcome!")
+    .setDescription(
+      `👋 ${member} has joined **GAG 2 Trading & Middleman Server!**\n\n` +
+      `👤 **Username:** ${member.user.username}\n` +
+      `🆔 **User ID:** ${member.id}\n` +
+      `📅 **Account Created:** ${created}\n` +
+      `📈 **Member Count:** #${member.guild.memberCount}`
+    )
+    .setFooter({ text: `Member #${member.guild.memberCount}` })
+    .setTimestamp();
+
+  channel.send({ embeds: [embed] });
+});
+
+// =======================
+// PANELS
+// =======================
+
 client.on("messageCreate", async (message) => {
-  if (!message.guild || message.author.bot) return;
 
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const cmd = args.shift()?.toLowerCase();
+  if (message.author.bot) return;
+  if (!message.content.startsWith(prefix)) return;
 
-  const owner = claimedTickets.get(message.channel.id);
-  const isOwner = owner === message.author.id;
+  const cmd = message.content.slice(prefix.length).toLowerCase();
 
-  // -------------------------
-  // 🛒 BUY PANEL
-  // -------------------------
+  // BUY PANEL
   if (cmd === "buy") {
+
     const embed = new EmbedBuilder()
-      .setTitle("🛒 BUY TICKETS")
-      .setDescription("Click below to create a BUY ticket.")
-      .setColor(0x00ff99);
+      .setColor("#57F287")
+      .setTitle("🛒 Buy Tickets")
+      .setDescription("Click below to request a BUY ticket.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -61,14 +105,13 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // -------------------------
-  // 💰 SELL PANEL
-  // -------------------------
+  // SELL PANEL
   if (cmd === "sell") {
+
     const embed = new EmbedBuilder()
-      .setTitle("💰 SELL TICKETS")
-      .setDescription("Click below to create a SELL ticket.")
-      .setColor(0xff9900);
+      .setColor("#FAA61A")
+      .setTitle("💰 Sell Tickets")
+      .setDescription("Click below to request a SELL ticket.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -80,14 +123,13 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // -------------------------
-  // 🎫 SUPPORT PANEL
-  // -------------------------
+  // SUPPORT PANEL
   if (cmd === "support") {
+
     const embed = new EmbedBuilder()
-      .setTitle("🎫 SUPPORT TICKETS")
-      .setDescription("Click below to create a SUPPORT ticket.")
-      .setColor(0x5865f2);
+      .setColor("#5865F2")
+      .setTitle("🎫 Support Tickets")
+      .setDescription("Click below to request SUPPORT.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -99,88 +141,109 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // -------------------------
   // CLAIM
-  // -------------------------
   if (cmd === "claim") {
-    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
-      return message.reply("❌ No permission.");
+
+    if (!message.member.roles.cache.has(STAFF_ROLE_ID)) return;
 
     if (claimedTickets.has(message.channel.id))
       return message.reply("❌ Already claimed.");
 
     claimedTickets.set(message.channel.id, message.author.id);
 
-    return message.channel.send("🎫 Ticket claimed.");
+    return message.channel.send(
+      "🎫 Ticket claimed by " + message.member
+    );
   }
 
-  // -------------------------
   // CLOSE
-  // -------------------------
   if (cmd === "close") {
-    const staff = message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
 
-    if (!staff && !isOwner)
-      return message.reply("❌ Not allowed.");
+    const claimer = claimedTickets.get(message.channel.id);
+    const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
+
+    if (claimer !== message.author.id && !isStaff) return;
 
     await message.channel.send("🔒 Closing ticket...");
 
-    setTimeout(() => {
+    // VOUCH SYSTEM
+    const vouchEmbed = new EmbedBuilder()
+      .setColor("#57F287")
+      .setTitle("⭐ Trade Completed")
+      .setDescription(
+        `👤 User: <@${claimer || "Unknown"}>\n` +
+        `🧑‍💼 Closed by: ${message.author}\n` +
+        `📦 Channel: ${message.channel.name}\n\n` +
+        `Please leave honest feedback.`
+      )
+      .setTimestamp();
+
+    const vouchChannel = message.guild.channels.cache.get(VOUCH_CHANNEL_ID);
+
+    if (vouchChannel) {
+      vouchChannel.send({ embeds: [vouchEmbed] });
+    }
+
+    setTimeout(async () => {
       claimedTickets.delete(message.channel.id);
-      message.channel.delete().catch(() => {});
-    }, 4000);
+      await message.channel.delete().catch(() => {});
+    }, 5000);
   }
 });
 
-// =========================
-// BUTTON SYSTEM (FIXED CATEGORIES)
-// =========================
+// =======================
+// TICKET CREATION
+// =======================
+
 client.on("interactionCreate", async (interaction) => {
+
   if (!interaction.isButton()) return;
 
-  const guild = interaction.guild;
-  const user = interaction.user;
+  let categoryId;
+  let type;
+  let color;
+  let name;
 
-  let categoryId = "";
-  let type = "";
-  let color = 0x2b2d31;
-  let prefixName = "";
-
-  // 🛒 BUY → CATEGORY
   if (interaction.customId === "buy_ticket") {
-    categoryId = "1515888821936324738";
+    categoryId = BUY_CATEGORY_ID;
     type = "BUY";
-    color = 0x00ff99;
-    prefixName = "buy";
+    color = "#57F287";
+    name = "buy";
   }
 
-  // 💰 SELL → CATEGORY
   if (interaction.customId === "sell_ticket") {
-    categoryId = "1515888774154817699";
+    categoryId = SELL_CATEGORY_ID;
     type = "SELL";
-    color = 0xff9900;
-    prefixName = "sell";
+    color = "#FAA61A";
+    name = "sell";
   }
 
-  // 🎫 SUPPORT → CATEGORY
   if (interaction.customId === "support_ticket") {
-    categoryId = "1515901968030367915";
+    categoryId = SUPPORT_CATEGORY_ID;
     type = "SUPPORT";
-    color = 0x5865f2;
-    prefixName = "support";
+    color = "#5865F2";
+    name = "support";
   }
 
-  const channel = await guild.channels.create({
-    name: `${prefixName}-${user.username}`,
+  const channel = await interaction.guild.channels.create({
+    name: `${name}-${interaction.user.username}`,
     type: ChannelType.GuildText,
     parent: categoryId,
     permissionOverwrites: [
       {
-        id: guild.id,
+        id: interaction.guild.id,
         deny: [PermissionsBitField.Flags.ViewChannel]
       },
       {
-        id: user.id,
+        id: interaction.user.id,
+        allow: [
+          PermissionsBitField.Flags.ViewChannel,
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.ReadMessageHistory
+        ]
+      },
+      {
+        id: STAFF_ROLE_ID,
         allow: [
           PermissionsBitField.Flags.ViewChannel,
           PermissionsBitField.Flags.SendMessages,
@@ -190,20 +253,34 @@ client.on("interactionCreate", async (interaction) => {
     ]
   });
 
+  let desc = "";
+
+  if (type === "BUY") {
+    desc =
+      "🛒 Please provide what you are buying, budget, and payment method.";
+  }
+
+  if (type === "SELL") {
+    desc =
+      "💰 Please provide what you are selling, price, and proof if needed.";
+  }
+
+  if (type === "SUPPORT") {
+    desc =
+      "🎫 Please describe your issue clearly.";
+  }
+
   const embed = new EmbedBuilder()
-    .setTitle(`🎟️ ${type} TICKET OPENED`)
-    .setDescription(
-      `Welcome <@${user.id}>\n\n` +
-      `Commands:\n` +
-      `• .claim → claim ticket\n` +
-      `• .close → close ticket\n\n` +
-      `Explain your request clearly.`
-    )
-    .setColor(color);
+    .setColor(color)
+    .setTitle(`🎟️ ${type} Ticket`)
+    .setDescription(desc);
 
-  channel.send({ embeds: [embed] });
+  channel.send({
+    content: `${interaction.user} <@&${STAFF_ROLE_ID}>`,
+    embeds: [embed]
+  });
 
-  return interaction.reply({
+  interaction.reply({
     content: `✅ Ticket created: ${channel}`,
     ephemeral: true
   });
