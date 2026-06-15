@@ -34,10 +34,21 @@ const SELL_CATEGORY_ID = "1515888774154817699";
 const SUPPORT_CATEGORY_ID = "1515901968030367915";
 
 // =======================
-// DATA
+// SYSTEM DATA
 // =======================
 
 const claimedTickets = new Map();
+const ticketOwners = new Map();
+const vouchCount = new Map();
+
+const vouchReasons = [
+  "bought racoon from him trusted ty",
+  "sold racoon hes trusted i got my money",
+  "sold dragonfly W mans",
+  "bought unicorn W hes so trusted",
+  "bought dragonfly omg hes so trusted",
+  "sold my unicorn for robux HOLY"
+];
 
 // =======================
 // READY
@@ -64,13 +75,12 @@ client.on("guildMemberAdd", async (member) => {
     .setColor("#7BC96F")
     .setTitle("🌿 Welcome!")
     .setDescription(
-      `👋 ${member} has joined **GAG 2 Trading & Middleman Server!**\n\n` +
-      `👤 **Username:** ${member.user.username}\n` +
-      `🆔 **User ID:** ${member.id}\n` +
-      `📅 **Account Created:** ${created}\n` +
-      `📈 **Member Count:** #${member.guild.memberCount}`
+      `👋 ${member} joined the server!\n\n` +
+      `👤 Username: ${member.user.username}\n` +
+      `🆔 User ID: ${member.id}\n` +
+      `📅 Account Created: ${created}\n` +
+      `📈 Member Count: #${member.guild.memberCount}`
     )
-    .setFooter({ text: `Member #${member.guild.memberCount}` })
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
@@ -87,13 +97,12 @@ client.on("messageCreate", async (message) => {
 
   const cmd = message.content.slice(prefix.length).toLowerCase();
 
-  // BUY PANEL
   if (cmd === "buy") {
 
     const embed = new EmbedBuilder()
       .setColor("#57F287")
       .setTitle("🛒 Buy Tickets")
-      .setDescription("Click below to request a BUY ticket.");
+      .setDescription("Click below to create a BUY ticket.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -105,13 +114,12 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // SELL PANEL
   if (cmd === "sell") {
 
     const embed = new EmbedBuilder()
       .setColor("#FAA61A")
       .setTitle("💰 Sell Tickets")
-      .setDescription("Click below to request a SELL ticket.");
+      .setDescription("Click below to create a SELL ticket.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -123,13 +131,12 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // SUPPORT PANEL
   if (cmd === "support") {
 
     const embed = new EmbedBuilder()
       .setColor("#5865F2")
       .setTitle("🎫 Support Tickets")
-      .setDescription("Click below to request SUPPORT.");
+      .setDescription("Click below to create SUPPORT ticket.");
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -151,31 +158,52 @@ client.on("messageCreate", async (message) => {
 
     claimedTickets.set(message.channel.id, message.author.id);
 
-    return message.channel.send(
-      "🎫 Ticket claimed by " + message.member
-    );
+    return message.channel.send("🎫 Ticket claimed.");
   }
 
   // CLOSE
   if (cmd === "close") {
 
-    const claimer = claimedTickets.get(message.channel.id);
+    const ownerId = ticketOwners.get(message.channel.id);
     const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
 
-    if (claimer !== message.author.id && !isStaff) return;
+    if (!isStaff && ownerId !== message.author.id) return;
 
     await message.channel.send("🔒 Closing ticket...");
 
-    // VOUCH SYSTEM
+    // increase vouch count
+    if (ownerId) {
+      const current = vouchCount.get(ownerId) || 0;
+      vouchCount.set(ownerId, current + 1);
+    }
+
+    const randomReason =
+      vouchReasons[Math.floor(Math.random() * vouchReasons.length)];
+
+    const total = vouchCount.get(ownerId) || 1;
+
     const vouchEmbed = new EmbedBuilder()
       .setColor("#57F287")
-      .setTitle("⭐ Trade Completed")
-      .setDescription(
-        `👤 User: <@${claimer || "Unknown"}>\n` +
-        `🧑‍💼 Closed by: ${message.author}\n` +
-        `📦 Channel: ${message.channel.name}\n\n` +
-        `Please leave honest feedback.`
+      .setTitle("⭐ New Vouch")
+      .addFields(
+        {
+          name: "Vouched For",
+          value: `<@${ownerId}>`
+        },
+        {
+          name: "Vouched By",
+          value: `${message.author}`
+        },
+        {
+          name: "Reason",
+          value: randomReason
+        },
+        {
+          name: "Total Vouches",
+          value: `${total}`
+        }
       )
+      .setFooter({ text: "Powered by GAG2 Helper Bot" })
       .setTimestamp();
 
     const vouchChannel = message.guild.channels.cache.get(VOUCH_CHANNEL_ID);
@@ -185,6 +213,7 @@ client.on("messageCreate", async (message) => {
     }
 
     setTimeout(async () => {
+      ticketOwners.delete(message.channel.id);
       claimedTickets.delete(message.channel.id);
       await message.channel.delete().catch(() => {});
     }, 5000);
@@ -192,7 +221,7 @@ client.on("messageCreate", async (message) => {
 });
 
 // =======================
-// TICKET CREATION
+// TICKETS
 // =======================
 
 client.on("interactionCreate", async (interaction) => {
@@ -253,22 +282,13 @@ client.on("interactionCreate", async (interaction) => {
     ]
   });
 
+  ticketOwners.set(channel.id, interaction.user.id);
+
   let desc = "";
 
-  if (type === "BUY") {
-    desc =
-      "🛒 Please provide what you are buying, budget, and payment method.";
-  }
-
-  if (type === "SELL") {
-    desc =
-      "💰 Please provide what you are selling, price, and proof if needed.";
-  }
-
-  if (type === "SUPPORT") {
-    desc =
-      "🎫 Please describe your issue clearly.";
-  }
+  if (type === "BUY") desc = "🛒 Provide what you're buying + budget + payment method.";
+  if (type === "SELL") desc = "💰 Provide what you're selling + price + proof.";
+  if (type === "SUPPORT") desc = "🎫 Explain your issue clearly.";
 
   const embed = new EmbedBuilder()
     .setColor(color)
