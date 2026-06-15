@@ -31,7 +31,7 @@ client.once("ready", () => {
 client.login(process.env.TOKEN);
 
 // =========================
-// PANELS (.buy .sell .support)
+// PANEL COMMANDS
 // =========================
 client.on("messageCreate", async (message) => {
   if (!message.guild || message.author.bot) return;
@@ -99,9 +99,9 @@ client.on("messageCreate", async (message) => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // =========================
-  // CLAIM SYSTEM
-  // =========================
+  // -------------------------
+  // CLAIM
+  // -------------------------
   if (cmd === "claim") {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
       return message.reply("❌ No permission.");
@@ -114,9 +114,9 @@ client.on("messageCreate", async (message) => {
     return message.channel.send("🎫 Ticket claimed.");
   }
 
-  // =========================
-  // CLOSE SYSTEM
-  // =========================
+  // -------------------------
+  // CLOSE
+  // -------------------------
   if (cmd === "close") {
     const staff = message.member.permissions.has(PermissionsBitField.Flags.ManageChannels);
 
@@ -133,7 +133,7 @@ client.on("messageCreate", async (message) => {
 });
 
 // =========================
-// BUTTON TICKET CREATION
+// BUTTON SYSTEM (FIXED CATEGORIES)
 // =========================
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isButton()) return;
@@ -141,23 +141,30 @@ client.on("interactionCreate", async (interaction) => {
   const guild = interaction.guild;
   const user = interaction.user;
 
+  let categoryId = "";
   let type = "";
   let color = 0x2b2d31;
   let prefixName = "";
 
+  // 🛒 BUY → CATEGORY
   if (interaction.customId === "buy_ticket") {
+    categoryId = "1515888821936324738";
     type = "BUY";
     color = 0x00ff99;
     prefixName = "buy";
   }
 
+  // 💰 SELL → CATEGORY
   if (interaction.customId === "sell_ticket") {
+    categoryId = "1515888774154817699";
     type = "SELL";
     color = 0xff9900;
     prefixName = "sell";
   }
 
+  // 🎫 SUPPORT → CATEGORY
   if (interaction.customId === "support_ticket") {
+    categoryId = "1515901968030367915";
     type = "SUPPORT";
     color = 0x5865f2;
     prefixName = "support";
@@ -166,6 +173,7 @@ client.on("interactionCreate", async (interaction) => {
   const channel = await guild.channels.create({
     name: `${prefixName}-${user.username}`,
     type: ChannelType.GuildText,
+    parent: categoryId,
     permissionOverwrites: [
       {
         id: guild.id,
@@ -175,7 +183,8 @@ client.on("interactionCreate", async (interaction) => {
         id: user.id,
         allow: [
           PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.SendMessages
+          PermissionsBitField.Flags.SendMessages,
+          PermissionsBitField.Flags.ReadMessageHistory
         ]
       }
     ]
