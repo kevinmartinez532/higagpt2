@@ -9,6 +9,25 @@ const {
   ChannelType,
   SlashCommandBuilder
 } = require("discord.js");
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
+const prefix = ".";
+
+const vouchReasons = [
+  "bought racoon from him trusted ty",
+  "sold racoon hes trusted i got my money",
+  "sold dragonfly W mans",
+  "bought unicorn W hes so trusted",
+  "bought dragonfly omg hes so trusted",
+  "sold my unicorn for robux HOLY"
+];
 const WELCOME_CHANNEL_ID = "1515902507807936722";
 const VOUCH_CHANNEL_ID = "1515887426860744807";
 
